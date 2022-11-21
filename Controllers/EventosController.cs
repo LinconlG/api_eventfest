@@ -1,25 +1,89 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using API_EventFest.Mappers;
 using API_EventFest.Models;
+using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics.Tracing;
 
 namespace API_EventFest.Controllers {
     [Route("api/[controller]")]
     [ApiController]
     public class EventosController : ControllerBase {
 
+        private readonly EventoMapper _eventoMapper;
 
 
-        [HttpPost]
-        public async Task<ActionResult<Evento>> Get() {
+        public EventosController(EventoMapper eventoMapper) {
+            _eventoMapper = eventoMapper;
+        }
 
-            var evento = new Evento();
+        [HttpPost("criar")]
+        public async Task<ActionResult> PostEvento(
+        [FromBody] Evento evento) {
+            try {
+                await _eventoMapper.CriarEvento(evento);
+                return Ok();
+            }
+            catch (Exception e) {
+                throw new Exception(e.Message);
+            }
+        }
 
-            evento.Nome = "Stereo Pink Felguk";
-            evento.Descricao = "CONFIRMADOS:\r\n\r\n@felguk, nosso headliner da noite vem com força total prometendo uma noite mágica para os amantes da música eletrônica. \r\n\r\nE junto a ele um time de peso!  @piratesnakemusic, @dommusicone, @diegobrunelli B2B @eduardotorrentes, @jessbenevides e @jotta.sounds .";
-            evento.Classificao = 18;
-            evento.Organizador = "Pink House";
-            evento.Data = new DateTime(2022, 11, 18, 23, 00, 00);
+        [HttpPost("uploadImagem")]
+        public async Task<ActionResult> PostImagem(
+        [FromForm] FileUpload foto) {
+            try {
+                await _eventoMapper.UploadImagem(foto);
+                return Ok();
+            }
+            catch (Exception e) {
+                throw new Exception(e.Message);
+            }
+        }
 
-            return Ok(evento);
+        [HttpGet]
+        public async Task<ActionResult<List<Evento>>> GetEventos(
+        [FromQuery (Name = "eventoid")] int? eventoid) {
+            try {
+                var eventos = await _eventoMapper.FindEventos(eventoid);
+
+                return Ok(eventos);
+            }
+            catch (Exception e) {
+                throw new Exception(e.Message);
+            }
+        }
+
+        [HttpGet("imagemEvento")]
+        public async Task<ActionResult> GetEventoImagem(
+            [FromQuery] int eventoid) {
+
+            try {
+                var filepath = await _eventoMapper.FindImagemPath(eventoid);
+
+                if (System.IO.File.Exists(filepath)) {
+                    byte[] b = System.IO.File.ReadAllBytes(filepath);
+                    return File(b, "image/jpg");
+                }
+                return null;
+            }
+            catch (Exception e) {
+                throw new Exception(e.Message);
+            }
+        }
+
+        [HttpDelete("deletar")]
+        public async Task<ActionResult> DeleteEvento(
+        [FromQuery(Name = "eventoid")] int eventoid) {
+            try {
+                await _eventoMapper.DeletarEvento(eventoid);
+
+                return Ok();
+            }
+            catch (Exception e) {
+
+                throw new Exception(e.Message);
+            }
+
+
         }
     }
 }

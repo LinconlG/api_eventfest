@@ -14,6 +14,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<ContaMapper>();
 builder.Services.AddScoped<BaseMapper>();
+builder.Services.AddScoped<EventoMapper>();
 
 var app = builder.Build();
 

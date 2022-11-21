@@ -17,8 +17,7 @@ namespace API_EventFest.Controllers {
         
         [HttpPost("criar")]
         public async Task<ActionResult> Post(
-            [FromBody] Conta conta
-        ){
+            [FromBody] Conta conta){
             try {
 
                 await _contaMapper.CriarConta(conta);
