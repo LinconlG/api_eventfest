@@ -17,6 +17,9 @@ namespace API_EventFest.Mappers {
         public async Task CriarEvento(Evento evento) {
 
             try {
+
+                var fotoid = await UploadImagem(evento.Foto);
+
                 cmd.CommandText = @$"INSERT INTO conta (
                                       evento_nome
                                     , evento_descricao
@@ -26,8 +29,6 @@ namespace API_EventFest.Mappers {
                                     , evento_qtdIngresso
                                     , evento_organizador)
                                 VALUES (@nome, @descricao, @data, @classificacao, @fotoid, @qtdIngresso, @organizador)";
-
-                var fotoid = await FindEventoImagem(evento.EventoID);
 
                 cmd.Parameters.Clear();
                 cmd.Parameters.Add("@nome", MySqlDbType.VarString);
@@ -61,6 +62,19 @@ namespace API_EventFest.Mappers {
         public async Task DeletarEvento(int eventoid) {
 
             try {
+                cmd.CommandText = @$"SELECT evento_fotoid FROM evento
+                                WHERE eventoid = @eventoid";
+
+                cmd.Parameters.Clear();
+                cmd.Parameters.Add("@eventoid", MySqlDbType.Int32);
+                cmd.Parameters["@eventoid"].Value = eventoid;
+                var dr = await cmd.ReaderQueryAsync();
+
+                while (await dr.ReadAsync()) {
+                    //deletarFoto(fotoid)
+                }
+
+
                 cmd.CommandText = @$"DELETE FROM evento
                                 WHERE eventoid = @eventoid";
 
@@ -125,7 +139,7 @@ namespace API_EventFest.Mappers {
             }
         }
 
-        public async Task<int> UploadImagem(FileUpload foto) {
+        public async Task<int> UploadImagem(Foto foto) {
 
             try {
                 await conexao.OpenAsync();
@@ -157,7 +171,7 @@ namespace API_EventFest.Mappers {
                 }
 
                 using (FileStream stream = File.Create(imagePath)) {
-                    await foto.file.CopyToAsync(stream);
+                    await foto.arquivo.CopyToAsync(stream);
                     await stream.FlushAsync();
                     cmd.CommandText = "INSERT INTO foto (foto_url) VALUES (@path)";
                     cmd.Parameters.Clear();
@@ -180,7 +194,7 @@ namespace API_EventFest.Mappers {
             
         }
 
-        public async Task<int> FindEventoImagem(int eventoid) {
+        public async Task<int> FindEventoFotoId(int eventoid) {
 
             int fotoid = 0;
 
@@ -202,9 +216,9 @@ namespace API_EventFest.Mappers {
             return fotoid;
         }
 
-        public async Task<string> FindImagemPath(int eventoid) {
+        public async Task<string> FindFotoPath(int eventoid) {
 
-            var fotoid = await FindEventoImagem(eventoid);
+            var fotoid = await FindEventoFotoId(eventoid);
 
             string filePath = GetFilePath(fotoid) + "\\imagem.jpg";
 

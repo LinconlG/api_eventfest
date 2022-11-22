@@ -17,8 +17,11 @@ namespace API_EventFest.Controllers {
 
         [HttpPost("criar")]
         public async Task<ActionResult> PostEvento(
-        [FromBody] Evento evento) {
+        [FromForm] Evento evento) {
             try {
+
+
+
                 await _eventoMapper.CriarEvento(evento);
                 return Ok();
             }
@@ -27,7 +30,7 @@ namespace API_EventFest.Controllers {
             }
         }
 
-        [HttpPost("uploadImagem")]
+        [HttpPost("uploadFoto")]
         public async Task<ActionResult> PostImagem(
         [FromForm] FileUpload foto) {
             try {
@@ -52,12 +55,12 @@ namespace API_EventFest.Controllers {
             }
         }
 
-        [HttpGet("imagemEvento")]
-        public async Task<ActionResult> GetEventoImagem(
+        [HttpGet("EventoFoto")]
+        public async Task<ActionResult> GetEventoFoto(
             [FromQuery] int eventoid) {
 
             try {
-                var filepath = await _eventoMapper.FindImagemPath(eventoid);
+                var filepath = await _eventoMapper.FindFotoPath(eventoid);
 
                 if (System.IO.File.Exists(filepath)) {
                     byte[] b = System.IO.File.ReadAllBytes(filepath);
