@@ -32,14 +32,21 @@ namespace API_EventFest.Controllers {
 
         [HttpPost("uploadFoto")]
         public async Task<ActionResult> PostImagem(
-        [FromForm] Foto foto) {
+        [FromForm] FileUpload foto) {
             try {
-                await _eventoMapper.UploadFoto(foto);
+                await _eventoMapper.UploadFoto(foto.file);
                 return Ok();
             }
             catch (Exception e) {
                 throw new Exception(e.Message);
             }
+        }
+
+        [HttpPatch]//mudar pra post?
+        public async Task<ActionResult> PatchEvento(
+            [FromBody] Evento evento) {
+            await _eventoMapper.EditarEvento(evento);
+            return Ok();
         }
 
         [HttpGet]

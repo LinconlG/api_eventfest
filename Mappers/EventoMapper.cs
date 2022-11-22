@@ -5,6 +5,7 @@ using API_EventFest.Models.Extensions;
 using Microsoft.Extensions.Logging;
 using MySql.Data.MySqlClient;
 using Org.BouncyCastle.Asn1.Ocsp;
+using System.Diagnostics;
 
 namespace API_EventFest.Mappers {
     public class EventoMapper : BaseMapper {
@@ -19,7 +20,7 @@ namespace API_EventFest.Mappers {
 
             try {
 
-                var fotoid = await UploadFoto(evento.Foto);
+                var fotoid = await FindEventoFotoId(evento.EventoID);
 
                 cmd.CommandText = @$"INSERT INTO conta (
                                       evento_nome
@@ -48,15 +49,11 @@ namespace API_EventFest.Mappers {
                 cmd.Parameters["@qtdIngresso"].Value = evento.QuantidadeIngressos;
                 cmd.Parameters["@organizador"].Value = evento.Organizador;
 
-                await conexao.OpenAsync();
-                await cmd.ExecuteNonQueryAsync();
+                await cmd.NonQueryAsync();
             }
             catch (Exception g) {
 
                 throw new Exception(g.Message);
-            }
-            finally {
-                await conexao.CloseAsync();
             }
         }
 
@@ -92,10 +89,12 @@ namespace API_EventFest.Mappers {
 
             try {
                 cmd.CommandText = $@"SELECT 
+                            eventoid,
                             evento_nome,
                             evento_descricao,
                             evento_data,
                             evento_classificacao,
+                            fotoid,
                             foto_url,
                             evento_preco,
                             evento_organizador
@@ -105,25 +104,24 @@ namespace API_EventFest.Mappers {
                         {(eventoid != null ? "AND eventoid = @eventoid" : " ")}
                         ";
 
-                cmd.Parameters.Clear();
-                cmd.Parameters.Add("@data", MySqlDbType.Date);
-                cmd.Parameters.Add("@eventoid", MySqlDbType.Int32);
-                cmd.Parameters["@data"].Value = DateTime.Now.Date;
-                cmd.Parameters["@eventoid"].Value = eventoid;
+                var parametro = new List<(string, object)> {
+                ("data", DateTime.Now),
+                ("eventoid", eventoid)
+                };
 
-                await conexao.OpenAsync();
-                var dr = await cmd.ExecuteReaderAsync();
+                var dr = await cmd.ReaderQueryAsync(parametro);
                 var eventos = new List<Evento>();
                 while (await dr.ReadAsync()) {
                     var evento = new Evento();
 
-                    evento.Nome = dr.GetString(0);
-                    evento.Descricao = dr.GetString(1);
-                    evento.Data = dr.GetDateTime(2);
-                    evento.Classificao = (Classificacao)dr.GetInt32(3);
-                    evento.Foto = new Foto() { Url = dr.GetString(4) };
-                    evento.Preco = dr.GetInt32(5);
-                    evento.Organizador = dr.GetString(6);
+                    evento.EventoID = dr.GetInt32(0);
+                    evento.Nome = dr.GetString(1);
+                    evento.Descricao = dr.GetString(2);
+                    evento.Data = dr.GetDateTime(3);
+                    evento.Classificao = (Classificacao)dr.GetInt32(4);
+                    evento.Foto = new Foto(await FindFotoPath(evento.EventoID), dr.GetInt32(5), dr.GetString(6));
+                    evento.Preco = dr.GetDecimal(7);
+                    evento.Organizador = dr.GetString(8);
 
                     eventos.Add(evento);
                 }
@@ -133,21 +131,36 @@ namespace API_EventFest.Mappers {
             catch (Exception e) {
                 throw new Exception(e.Message);
             }
-            finally { 
-                await conexao.CloseAsync();
-            }
         }
 
-        public async Task<int> UploadFoto(Foto foto) {
+        public async Task EditarEvento(Evento evento) {
+
+            cmd.CommandText = $@"UPDATE evento
+                                SET   evento_nome = @nome
+                                    , evento_descricao = @descricao
+                                    , evento_data = @data
+                                    , evento_fotoid = @fotoid
+                                WHERE eventoid = @eventoid
+                                ";
+
+            var parametros = new List<(string, object)> {
+                ("nome", evento.Nome),
+                ("descricao", evento.Descricao),
+                ("data", evento.Data),
+                ("fotoid", evento.Foto.FotoID),
+                ("eventoid", evento.EventoID)
+            };//mudar endereço tambem
+
+            await cmd.NonQueryAsync(parametros);
+        }
+
+        public async Task<int> UploadFoto(IFormFile foto) {
 
             try {
-                await conexao.OpenAsync();
-
-                string Filepath;
 
                 cmd.CommandText = "SELECT fotoid FROM foto ORDER BY fotoid desc LIMIT 1";
 
-                var dr = await cmd.ExecuteReaderAsync();
+                var dr = await cmd.ReaderQueryAsync();
                 int fotoid = 0;
                 while (await dr.ReadAsync()) {
                     fotoid = dr.GetInt32(0) + 1;
@@ -156,29 +169,27 @@ namespace API_EventFest.Mappers {
                 if (fotoid == 0) {
                     throw new Exception("ocorreu um erro ao procurar a fotoid");
                 }
-                Filepath = GetFilePath(fotoid);
-                await conexao.CloseAsync();
+                var Filepath = GetFilePath(fotoid);
 
                 if (!Directory.Exists(Filepath)) {
                     Directory.CreateDirectory(Filepath);
                 }
 
-                string imagePath = Filepath + "\\imagem.jpg";
+                var imagePath = Filepath + "\\imagem.jpg";
 
                 if (File.Exists(imagePath)) {
                     File.Delete(imagePath);
                 }
 
                 using (FileStream stream = File.Create(imagePath)) {
-                    await foto.arquivo.CopyToAsync(stream);
+                    await foto.CopyToAsync(stream);
                     await stream.FlushAsync();
                     cmd.CommandText = "INSERT INTO foto (foto_url) VALUES (@path)";
                     cmd.Parameters.Clear();
                     cmd.Parameters.Add("@path", MySqlDbType.VarString);
                     cmd.Parameters["@path"].Value = imagePath;
 
-                    await conexao.OpenAsync();
-                    await cmd.ExecuteNonQueryAsync();
+                    await cmd.ReaderQueryAsync();
                 }
 
                 return fotoid;
@@ -186,11 +197,7 @@ namespace API_EventFest.Mappers {
             catch (Exception e) {
 
                 throw new Exception(e.Message);
-            }
-            finally {
-                await conexao.CloseAsync();
-            }
-            
+            }     
         }
 
         public async Task DeletarFoto(int fotoid) {
