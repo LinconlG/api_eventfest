@@ -2,6 +2,7 @@
 using API_EventFest.Models;
 using API_EventFest.Models.Enum;
 using API_EventFest.Models.Extensions;
+using Microsoft.Extensions.Logging;
 using MySql.Data.MySqlClient;
 using Org.BouncyCastle.Asn1.Ocsp;
 
@@ -18,7 +19,7 @@ namespace API_EventFest.Mappers {
 
             try {
 
-                var fotoid = await UploadImagem(evento.Foto);
+                var fotoid = await UploadFoto(evento.Foto);
 
                 cmd.CommandText = @$"INSERT INTO conta (
                                       evento_nome
@@ -70,11 +71,6 @@ namespace API_EventFest.Mappers {
                 cmd.Parameters["@eventoid"].Value = eventoid;
                 var dr = await cmd.ReaderQueryAsync();
 
-                while (await dr.ReadAsync()) {
-                    //deletarFoto(fotoid)
-                }
-
-
                 cmd.CommandText = @$"DELETE FROM evento
                                 WHERE eventoid = @eventoid";
 
@@ -83,6 +79,9 @@ namespace API_EventFest.Mappers {
                 cmd.Parameters["@eventoid"].Value = eventoid;
                 await cmd.NonQueryAsync();
 
+                while (await dr.ReadAsync()) {
+                    await DeletarFoto(dr.GetInt32(0));
+                }
             }
             catch (Exception e) {
                 throw new Exception(e.Message);
@@ -139,7 +138,7 @@ namespace API_EventFest.Mappers {
             }
         }
 
-        public async Task<int> UploadImagem(Foto foto) {
+        public async Task<int> UploadFoto(Foto foto) {
 
             try {
                 await conexao.OpenAsync();
@@ -192,6 +191,27 @@ namespace API_EventFest.Mappers {
                 await conexao.CloseAsync();
             }
             
+        }
+
+        public async Task DeletarFoto(int fotoid) {
+
+            string directory = GetFilePath(fotoid);
+            string imagePath = directory + "\\imagem.jpg";
+
+            if (File.Exists(imagePath)) {
+                File.Delete(imagePath);
+            }
+            if (Directory.Exists(directory)) {
+                Directory.Delete(directory);
+            }
+
+            cmd.CommandText = @$"DELETE FROM foto
+                                WHERE fotoid = @fotoid";
+
+            cmd.Parameters.Clear();
+            cmd.Parameters.Add("@fotoid", MySqlDbType.Int32);
+            cmd.Parameters["@fotoid"].Value = fotoid;
+            await cmd.NonQueryAsync();
         }
 
         public async Task<int> FindEventoFotoId(int eventoid) {

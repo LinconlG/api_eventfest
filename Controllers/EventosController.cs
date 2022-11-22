@@ -32,9 +32,9 @@ namespace API_EventFest.Controllers {
 
         [HttpPost("uploadFoto")]
         public async Task<ActionResult> PostImagem(
-        [FromForm] FileUpload foto) {
+        [FromForm] Foto foto) {
             try {
-                await _eventoMapper.UploadImagem(foto);
+                await _eventoMapper.UploadFoto(foto);
                 return Ok();
             }
             catch (Exception e) {
@@ -82,7 +82,6 @@ namespace API_EventFest.Controllers {
                 return Ok();
             }
             catch (Exception e) {
-
                 throw new Exception(e.Message);
             }
 

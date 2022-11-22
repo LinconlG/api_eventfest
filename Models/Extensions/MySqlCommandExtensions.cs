@@ -1,4 +1,5 @@
 ﻿using MySql.Data.MySqlClient;
+using System.Data;
 using System.Data.Common;
 using System.Runtime.CompilerServices;
 
@@ -14,9 +15,11 @@ namespace API_EventFest.Models.Extensions {
         public async static Task<DbDataReader> ReaderQueryAsync(this MySqlCommand thisObj) {
             await thisObj.Connection.OpenAsync();
             var dr = await thisObj.ExecuteReaderAsync();
+            var dt = new DataTable();
+            dt.Load(dr);
             await thisObj.Connection.CloseAsync();
 
-            return dr;
+            return dt.CreateDataReader();
         }
     }
 }
