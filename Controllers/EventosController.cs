@@ -10,7 +10,6 @@ namespace API_EventFest.Controllers {
 
         private readonly EventoMapper _eventoMapper;
 
-
         public EventosController(EventoMapper eventoMapper) {
             _eventoMapper = eventoMapper;
         }
@@ -42,16 +41,16 @@ namespace API_EventFest.Controllers {
             }
         }
 
-        [HttpPatch]//mudar pra post?
+        [HttpPatch("editar")]
         public async Task<ActionResult> PatchEvento(
-            [FromBody] Evento evento) {
+        [FromBody] Evento evento) {
             await _eventoMapper.EditarEvento(evento);
             return Ok();
         }
 
         [HttpGet]
         public async Task<ActionResult<List<Evento>>> GetEventos(
-        [FromQuery (Name = "eventoid")] int? eventoid) {
+        [FromQuery(Name = "eventoid")] int? eventoid) {
             try {
                 var eventos = await _eventoMapper.FindEventos(eventoid);
 
@@ -64,16 +63,13 @@ namespace API_EventFest.Controllers {
 
         [HttpGet("EventoFoto")]
         public async Task<ActionResult> GetEventoFoto(
-            [FromQuery] int eventoid) {
+        [FromQuery(Name = "eventoid")] int? eventoid = null,
+        [FromQuery(Name = "fotoid")] int? fotoid = null) {
 
             try {
-                var filepath = await _eventoMapper.FindFotoPath(eventoid);
-
-                if (System.IO.File.Exists(filepath)) {
-                    byte[] b = System.IO.File.ReadAllBytes(filepath);
-                    return File(b, "image/jpg");
-                }
-                return null;
+                string imagepath = await _eventoMapper.FindFotoPath(eventoid, fotoid);
+                byte[] foto = System.IO.File.ReadAllBytes(imagepath);
+                return File(foto, "image/jpg");
             }
             catch (Exception e) {
                 throw new Exception(e.Message);

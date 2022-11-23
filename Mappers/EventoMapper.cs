@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using MySql.Data.MySqlClient;
 using Org.BouncyCastle.Asn1.Ocsp;
 using System.Diagnostics;
+using System.Reflection.Metadata.Ecma335;
 
 namespace API_EventFest.Mappers {
     public class EventoMapper : BaseMapper {
@@ -138,6 +139,7 @@ namespace API_EventFest.Mappers {
             cmd.CommandText = $@"UPDATE evento
                                 SET   evento_nome = @nome
                                     , evento_descricao = @descricao
+                                    , evento_endereco = @endereco
                                     , evento_data = @data
                                     , evento_fotoid = @fotoid
                                 WHERE eventoid = @eventoid
@@ -146,10 +148,10 @@ namespace API_EventFest.Mappers {
             var parametros = new List<(string, object)> {
                 ("nome", evento.Nome),
                 ("descricao", evento.Descricao),
+                ("endereco", evento.Endereco),
                 ("data", evento.Data),
-                ("fotoid", evento.Foto.FotoID),
-                ("eventoid", evento.EventoID)
-            };//mudar endereço tambem
+                ("fotoid", evento.Foto.FotoID)
+            };
 
             await cmd.NonQueryAsync(parametros);
         }
@@ -169,13 +171,13 @@ namespace API_EventFest.Mappers {
                 if (fotoid == 0) {
                     throw new Exception("ocorreu um erro ao procurar a fotoid");
                 }
-                var Filepath = GetFilePath(fotoid);
+                var directoryFoto = GetImagePath(fotoid).Substring(0, GetImagePath(fotoid).IndexOf("\\ima"));
 
-                if (!Directory.Exists(Filepath)) {
-                    Directory.CreateDirectory(Filepath);
+                if (!Directory.Exists(directoryFoto)) {
+                    Directory.CreateDirectory(directoryFoto);
                 }
 
-                var imagePath = Filepath + "\\imagem.jpg";
+                var imagePath = GetImagePath(fotoid);
 
                 if (File.Exists(imagePath)) {
                     File.Delete(imagePath);
@@ -202,7 +204,7 @@ namespace API_EventFest.Mappers {
 
         public async Task DeletarFoto(int fotoid) {
 
-            string directory = GetFilePath(fotoid);
+            string directory = GetImagePath(fotoid);
             string imagePath = directory + "\\imagem.jpg";
 
             if (File.Exists(imagePath)) {
@@ -243,17 +245,29 @@ namespace API_EventFest.Mappers {
             return fotoid;
         }
 
-        public async Task<string> FindFotoPath(int eventoid) {
+        public async Task<string> FindFotoPath(int? eventoid = null, int? fotoid = null) {
 
-            var fotoid = await FindEventoFotoId(eventoid);
+            int eventoFotoid;
+            string imagePath;
 
-            string filePath = GetFilePath(fotoid) + "\\imagem.jpg";
-
-            return filePath;
+            if (fotoid is not null) {
+                imagePath = GetImagePath((int)fotoid);
+                if (!File.Exists(imagePath)) {
+                    throw new Exception("Foto não encontrada, verifique a fotoid");
+                }
+            }else if (eventoid is not null) {
+                eventoFotoid = await FindEventoFotoId((int)eventoid);
+                imagePath = GetImagePath(eventoFotoid);
+            }
+            else {
+                throw new Exception("Ambos parametros estão vazios");
+            }
+ 
+            return imagePath;
         }
 
-        private string GetFilePath(int fotoid) {
-            return this._webHostEnvironment.WebRootPath + "\\Uploads\\Evento_ilustracao\\" + fotoid.ToString();
+        private string GetImagePath(int fotoid) {
+            return this._webHostEnvironment.WebRootPath + "\\Uploads\\Evento_ilustracao\\" + fotoid.ToString() + "\\imagem.jpg";
         }
     }
 }

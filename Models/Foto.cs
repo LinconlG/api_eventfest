@@ -1,11 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using API_EventFest.Requests;
 
 namespace API_EventFest.Models {
     public class Foto {
+        
         public int FotoID { get; set; }
         public string Url { get; set; }
         public byte[] arquivo { get; set; }
-        public FileContentResult foto { get; set; }
 
         public Foto() { }
 
@@ -15,7 +16,6 @@ namespace API_EventFest.Models {
             Url = url;
             if (File.Exists(imagePath)) {
                 arquivo = File.ReadAllBytes(imagePath);
-                //criar context pra fazer o request aqui e a variavel FOTO receber o actionResult
             }
         }
     }
